@@ -1,2 +1,2 @@
-# sitoweb
-Il sito web di Alice Baggi creato per il workshop di Coding. 
+# ilmiosito
+Pagina personale con esercizi

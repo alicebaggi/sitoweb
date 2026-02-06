@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Esercizio 2 – Alice Baggi</title>
+<style>
+  body { margin: 0; background: #000; overflow: hidden; cursor: crosshair; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
+<script>
+let bubbles = [];
+const fonts = ['Georgia', 'Arial', 'Courier New', 'Impact', 'Palatino', 'Verdana'];
+let spawnRate = 35; 
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  for (let i = 0; i < 10; i++) {
+    bubbles.push(new Bubble(true)); 
+  }
+}
+
+function draw() {
+  background(0, 80); // Leggero motion blur come nell'about
+
+  if (frameCount % spawnRate === 0) {
+    bubbles.push(new Bubble(false));
+  }
+
+  for (let i = bubbles.length - 1; i >= 0; i--) {
+    bubbles[i].update();
+    bubbles[i].display();
+    // Rimosso il controllo fade <= 0 per permettere alle particelle di cadere fuori schermo
+    if (bubbles[i].y < -200 || (bubbles[i].isPopped && bubbles[i].particles.length === 0)) {
+      bubbles.splice(i, 1);
+    }
+  }
+}
+
+// ... (parte iniziale del setup e draw rimane invariata)
+
+class Bubble {
+  constructor(isInitial) {
+    this.r = random(45, 75);
+    this.x = random(this.r, width - this.r);
+    this.y = isInitial ? random(0, height) : height + this.r * 2;
+    this.speed = random(1.0, 2.2);
+    this.fontIndex = floor(random(fonts.length));
+    
+    // DEFINIZIONE PALETTE ABOUT ME
+    const palette = [
+      [0, 100, 255], // Blu Intenso
+      [0, 160, 255], // Azzurro Brillante
+      [0, 210, 255], // Ciano
+      [0, 255, 240]  // Turchese
+    ];
+    // Assegna un colore casuale dalla palette a questa bolla
+    this.color = random(palette); 
+    
+    this.isPopped = false;
+    this.particles = [];
+    this.noiseOffset = random(2000);
+    this.fade = 255;
+    this.morphCounter = 0;
+  }
+
+  update() {
+    if (!this.isPopped) {
+      this.y -= this.speed;
+      this.x += sin(frameCount * 0.02 + this.noiseOffset) * 0.7;
+    } else {
+      this.morphCounter++;
+      if (this.morphCounter % 15 === 0 && this.fade > 50) {
+        this.fontIndex = (this.fontIndex + 1) % fonts.length;
+      }
+      this.fade -= 4; 
+      for (let i = this.particles.length - 1; i >= 0; i--) {
+        this.particles[i].update();
+        if (this.particles[i].alpha <= 0) this.particles.splice(i, 1);
+      }
+    }
+  }
+
+  display() {
+    push();
+    translate(this.x, this.y);
+    if (!this.isPopped) {
+      noFill();
+      // Usa il colore scelto dalla palette
+      stroke(this.color[0], this.color[1], this.color[2]);
+      strokeWeight(1.5);
+      circle(0, 0, this.r * 2);
+      fill(this.color[0], this.color[1], this.color[2]);
+      noStroke();
+      textAlign(CENTER, CENTER);
+      textFont(fonts[this.fontIndex]);
+      textSize(this.r * 0.9);
+      text('A', 0, 0);
+    } else {
+      if(this.fade > 0) {
+        fill(this.color[0], this.color[1], this.color[2], this.fade);
+        textAlign(CENTER, CENTER);
+        textFont(fonts[this.fontIndex]);
+        textSize(this.r);
+        text('A', 0, 0);
+      }
+      for (let p of this.particles) p.display();
+    }
+    pop();
+  }
+
+  pop() {
+    if (!this.isPopped) {
+      this.isPopped = true;
+      for (let i = 0; i < 30; i++) {
+        // Passa il colore specifico della bolla alle particelle
+        this.particles.push(new Particle(0, 0, this.color));
+      }
+    }
+  }
+}
+
+// ... (la classe Particle rimane quella del messaggio precedente)
+
+// NUOVA CLASSE PARTICLE - STILE GOCCE "ABOUT ME"
+class Particle {
+  constructor(x, y, col) {
+    this.pos = createVector(x, y);
+    // Esplosione iniziale verso l'alto e i lati
+    this.vel = createVector(random(-4, 4), random(-6, 2));
+    this.gravity = 0.25; // Forza che spinge giù
+    this.alpha = 255;
+    this.col = col;
+    this.w = random(2, 4);
+  }
+  
+  update() {
+    this.vel.y += this.gravity; // Cade come pioggia
+    this.pos.add(this.vel);
+    this.alpha -= 4; // Dissolvenza più lenta
+  }
+  
+  display() {
+    if (this.alpha <= 0) return;
+    noStroke();
+    fill(this.col[0], this.col[1], this.col[2], this.alpha);
+    // Forma a goccia (ellisse allungata in base alla velocità)
+    push();
+    translate(this.pos.x, this.pos.y);
+    let angle = this.vel.heading();
+    rotate(angle + HALF_PI);
+    ellipse(0, 0, this.w, this.vel.mag() * 2);
+    pop();
+  }
+}
+
+function mousePressed() {
+  let hit = false;
+  for (let b of bubbles) {
+    let d = dist(mouseX, mouseY, b.x, b.y);
+    if (d < b.r && !b.isPopped) {
+      b.pop();
+      hit = true;
+      break; 
+    }
+  }
+  if (!hit) {
+    window.parent.postMessage('closeAbout', '*');
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+</script>
+</body>
+</html>

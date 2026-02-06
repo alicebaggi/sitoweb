@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Esercizio 3 – Slalom Finale</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
+<style>
+  body { margin: 0; background: #000; overflow: hidden; font-family: 'Inter', sans-serif; cursor: none; }
+  canvas { display: block; }
+  
+  #ui {
+    position: fixed; top: 40px; left: 85px; z-index: 100; pointer-events: none; 
+  }
+  .label { 
+    font-size: 9px; letter-spacing: 4px; color: rgba(255, 255, 255, 0.4); 
+    text-transform: uppercase; display: block; font-weight: 300;
+  }
+  #meters { 
+    font-size: 28px; font-weight: 700; display: block; margin-top: 2px;
+    color: #00bfff; letter-spacing: -0.5px;
+  }
+
+  #game-over {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.95); display: none; 
+    flex-direction: column; align-items: center; justify-content: center;
+    z-index: 2000; backdrop-filter: blur(15px); color: white;
+  }
+  h1 { font-size: 2.2rem; font-weight: 700; letter-spacing: 10px; color: #00bfff; margin-bottom: 8px; text-transform: uppercase; }
+  #final-score { font-size: 0.85rem; font-weight: 300; letter-spacing: 3px; margin-bottom: 30px; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+  .btn-retry { 
+    background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #fff; 
+    padding: 12px 35px; cursor: pointer; font-size: 0.75rem; font-weight: 300; 
+    text-transform: uppercase; letter-spacing: 2px; transition: all 0.4s ease;
+    font-family: 'Inter', sans-serif;
+  }
+  .btn-retry:hover { border-color: #00bfff; color: #00bfff; letter-spacing: 4px; }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <span class="label">Altezza</span>
+  <span id="meters">0 m</span>
+</div>
+
+<div id="game-over">
+  <h1>GAME OVER</h1>
+  <p id="final-score">Altitudine raggiunta: 0 m</p>
+  <button class="btn-retry" onclick="resetGame()">Riprova</button>
+</div>
+
+<script>
+let player;
+let branches = [];
+let particles = [];
+let clouds = [];
+let meters = 0;
+let isGameOver = false;
+let gamePaused = false;
+let gameStarted = false; 
+const trunkWidth = 60;
+const numClouds = 12; // Numero aumentato per maggiore densità
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  player = new Player();
+  initClouds();
+}
+
+function initClouds() {
+  clouds = [];
+  for(let i=0; i<numClouds; i++) {
+    clouds.push(new Cloud(random(-height, height)));
+  }
+}
+
+function draw() {
+  background(0); 
+
+  // 1. NUVOLE (Sfondo con parallasse aumentata)
+  for (let i = 0; i < clouds.length; i++) {
+    clouds[i].update();
+    clouds[i].display();
+    
+    if (clouds[i].y > height + 250) {
+      clouds[i].y = random(-400, -200);
+      clouds[i].x = random(trunkWidth, width - trunkWidth);
+      // Riassegna casualmente dimensione e velocità per varietà
+      clouds[i].resetProperties();
+    }
+  }
+
+  // 2. TRONCHI
+  fill(255);
+  noStroke();
+  rect(0, 0, trunkWidth, height);
+  rect(width - trunkWidth, 0, trunkWidth, height);
+
+  if (!isGameOver) {
+    if (mouseX !== 0 || mouseY !== 0) gameStarted = true;
+
+    if (gameStarted) {
+      player.update();
+      if (player.x - player.r <= trunkWidth || player.x + player.r >= width - trunkWidth) {
+        explodePlayer();
+      }
+      if (frameCount % 55 === 0) branches.push(new Branch());
+      if (frameCount % 10 === 0) {
+        meters++;
+        document.getElementById('meters').innerText = meters + " m";
+      }
+    }
+    player.display();
+  }
+
+  // 3. RAMI
+  for (let i = branches.length - 1; i >= 0; i--) {
+    branches[i].update();
+    branches[i].display();
+    if (!isGameOver && gameStarted && branches[i].hits(player)) explodePlayer();
+    if (branches[i].y > height + 50) branches.splice(i, 1);
+  }
+
+  // 4. ESPLOSIONE
+  for (let i = particles.length - 1; i >= 0; i--) {
+    particles[i].update();
+    particles[i].display();
+    if (particles[i].alpha <= 0) particles.splice(i, 1);
+  }
+
+  if (isGameOver && particles.length === 0 && !gamePaused) showGameOver();
+}
+
+function explodePlayer() {
+  if (isGameOver) return;
+  isGameOver = true;
+  for (let i = 0; i < 45; i++) {
+    particles.push(new Particle(player.x, player.y, [0, 191, 255]));
+  }
+}
+
+function showGameOver() {
+  gamePaused = true;
+  document.getElementById('game-over').style.display = 'flex';
+  document.getElementById('final-score').innerText = "Altitudine raggiunta: " + meters + " m";
+}
+
+function resetGame() {
+  isGameOver = false; gamePaused = false; gameStarted = false;
+  meters = 0; branches = []; particles = [];
+  document.getElementById('meters').innerText = "0 m";
+  document.getElementById('game-over').style.display = 'none';
+  player = new Player();
+  initClouds();
+}
+
+class Cloud {
+  constructor(y) {
+    this.x = random(trunkWidth, width - trunkWidth);
+    this.y = y;
+    this.resetProperties();
+  }
+
+  resetProperties() {
+    // Alcune sono grandi, altre piccole per creare profondità
+    this.w = random(150, 400);
+    this.h = this.w * random(0.4, 0.6);
+    // Più sono piccole (lontane), più si muovono lente
+    this.baseSpeed = map(this.w, 150, 400, 0.3, 1.5);
+    this.opacity = map(this.w, 150, 400, 10, 25);
+    this.blurValue = map(this.w, 150, 400, 30, 60);
+  }
+
+  update() {
+    if (gameStarted && !isGameOver) {
+      this.y += this.baseSpeed + (meters * 0.0015);
+    }
+  }
+
+  display() {
+    push();
+    drawingContext.filter = `blur(${this.blurValue}px)`; 
+    noStroke();
+    fill(255, this.opacity);
+    ellipse(this.x, this.y, this.w, this.h);
+    pop();
+  }
+}
+
+class Player {
+  constructor() {
+    this.x = width / 2;
+    this.y = height * 0.8;
+    this.r = 16;
+  }
+  update() {
+    this.x = lerp(this.x, mouseX, 0.15);
+    this.y = lerp(this.y, mouseY, 0.15);
+  }
+  display() {
+    noFill();
+    stroke(0, 191, 255);
+    strokeWeight(2.5);
+    circle(this.x, this.y, this.r * 2);
+    fill(0, 191, 255, 40);
+    noStroke();
+    circle(this.x, this.y, this.r * 2);
+  }
+}
+
+class Branch {
+  constructor() {
+    this.isLeft = random() > 0.5;
+    this.w = random(width * 0.35, width * 0.65);
+    this.h = 8;
+    this.y = -20;
+    this.speed = 5.5 + (meters * 0.01);
+    this.x = this.isLeft ? trunkWidth : width - trunkWidth - this.w;
+  }
+  update() { this.y += this.speed; }
+  display() {
+    fill(255);
+    noStroke();
+    rect(this.x, this.y, this.w, this.h);
+  }
+  hits(p) {
+    return (p.x + p.r > this.x && p.x - p.r < this.x + this.w &&
+            p.y + p.r > this.y && p.y - p.r < this.y + this.h);
+  }
+}
+
+class Particle {
+  constructor(x, y, col) {
+    this.pos = createVector(x, y);
+    this.vel = createVector(random(-5, 5), random(-8, 2));
+    this.gravity = 0.3;
+    this.alpha = 255;
+    this.col = col;
+    this.w = random(2, 5);
+  }
+  update() {
+    this.vel.y += this.gravity;
+    this.pos.add(this.vel);
+    this.alpha -= 4;
+  }
+  display() {
+    noStroke();
+    fill(this.col[0], this.col[1], this.col[2], this.alpha);
+    push();
+    translate(this.pos.x, this.pos.y);
+    rotate(this.vel.heading() + HALF_PI);
+    ellipse(0, 0, this.w, this.vel.mag() * 2.5);
+    pop();
+  }
+}
+
+function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+</script>
+</body>
+</html>

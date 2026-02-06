@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>ALICE BAGGI – Portfolio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+* {margin:0; padding:0; box-sizing:border-box;}
+html, body { font-family: 'Inter', sans-serif; height:100%; background: #000; color: #fff; overflow: hidden; }
+
+#title-container { position: fixed; bottom: 8%; left: 6%; pointer-events: none; z-index: 10; }
+#main-title { font-size: clamp(3rem, 10vw, 8rem); font-weight: 700; color: #00bfff; text-transform: uppercase; line-height: 0.8; letter-spacing: -2px; }
+
+/* Sottotitolo: BUBBLE FLOW */
+#subtitle { 
+    font-size: clamp(0.8rem, 2vw, 1.4rem); 
+    font-weight: 300; 
+    color: #ffffff; 
+    text-transform: uppercase; 
+    margin-top: 1.2rem; 
+    letter-spacing: 10px;
+}
+
+#bubbles-container { position: relative; width: 100%; height: 100vh; }
+
+@keyframes blowUp {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.bubble-wrapper {
+  position: absolute;
+  opacity: 0;
+  animation: blowUp 0.9s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards;
+  transform: translate(-50%, -50%);
+}
+
+.bubble { 
+  width: 100%; height: 100%;
+  border-radius: 50%; 
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  cursor: pointer; 
+  transition: all 0.3s ease;
+}
+
+.bubble.decorative { background: rgba(0, 191, 255, 0.1); pointer-events: none; }
+.bubble.interactive { background: rgba(0, 191, 255, 0.6); border: 1.5px solid rgba(255, 255, 255, 0.2); }
+.bubble.interactive:hover { background: rgba(0, 191, 255, 0.85); box-shadow: 0 0 30px rgba(0, 191, 255, 0.4); transform: scale(1.08); }
+.bubble i { font-size: 1.6rem; color: #ffffff; }
+
+.tooltip { position: absolute; background: #fff; color: #000; padding: 8px 16px; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 100; white-space: nowrap; }
+.tooltip.visible { opacity: 1; }
+
+#overlay-content { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; display: none; opacity: 0; transition: opacity 0.5s; }
+#close-btn { position: absolute; top: 25px; right: 35px; color: #00bfff; font-size: 3.5rem; cursor: pointer; z-index: 1001; line-height: 1; transition: 0.3s; }
+iframe { width: 100%; height: 100%; border: none; }
+</style>
+</head>
+<body>
+
+<div id="overlay-content">
+  <span id="close-btn">&times;</span>
+  <iframe id="frame-target" src=""></iframe>
+</div>
+
+<div id="title-container">
+  <div id="main-title">ALICE BAGGI</div>
+  <div id="subtitle">BUBBLE FLOW</div>
+</div>
+
+<div id="bubbles-container"></div>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const container = document.getElementById('bubbles-container');
+const tooltip = document.getElementById('tooltip');
+const overlay = document.getElementById('overlay-content');
+const frame = document.getElementById('frame-target');
+const bubbles = [];
+
+function createBubble(xPct, yPct, size, delay, isInteractive, item = null) {
+  const wrapper = document.createElement('div');
+  wrapper.classList.add('bubble-wrapper');
+  wrapper.style.width = size + 'px';
+  wrapper.style.height = size + 'px';
+  wrapper.style.left = xPct + '%';
+  wrapper.style.top = yPct + '%';
+  wrapper.style.animationDelay = delay + 's';
+
+  const b = document.createElement('div');
+  b.classList.add('bubble', isInteractive ? 'interactive' : 'decorative');
+  if (item) b.innerHTML = `<i class="${item.icon}"></i>`;
+  
+  wrapper.appendChild(b);
+  container.appendChild(wrapper);
+
+  const bubbleObj = { el: b, seed: Math.random() * 10 };
+
+  if (isInteractive && item) {
+    b.addEventListener('mouseenter', () => { tooltip.innerHTML = item.info; tooltip.classList.add('visible'); });
+    b.addEventListener('mousemove', (e) => { 
+        tooltip.style.left = (e.clientX + 15) + 'px'; 
+        tooltip.style.top = (e.clientY - 40) + 'px'; 
+    });
+    b.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+    b.addEventListener('click', () => {
+      frame.src = item.url; // Qui carica il file locale
+      overlay.style.display = 'block';
+      setTimeout(() => overlay.style.opacity = '1', 10);
+    });
+  }
+  bubbles.push(bubbleObj);
+}
+
+for(let i=0; i<15; i++){
+  createBubble(Math.random()*100, Math.random()*100, Math.random()*30+10, Math.random()*2, false);
+}
+
+// **Menu con link locali**
+const menu = [
+  {icon:'fas fa-file-lines', info:'Esercizio 1', url:'ilmiosito/esercizio1.html'},
+  {icon:'fas fa-file-lines', info:'Esercizio 2', url:'ilmiosito/esercizio2.html'},
+  {icon:'fas fa-file-lines', info:'Esercizio 3', url:'ilmiosito/esercizio3.html'}, 
+  {icon:'fas fa-user',       info:'About me',   url:'ilmiosito/aboutme.html'} 
+];
+
+menu.forEach((item, i) => {
+  const xPos = 22 + (i * 18);
+  const yPos = 45;
+  const size = Math.min(window.innerWidth * 0.1, 95);
+  createBubble(xPos, yPos, Math.max(size, 75), 0.5 + (i * 0.3), true, item);
+});
+
+function closeOverlay() {
+  overlay.style.opacity = '0';
+  setTimeout(() => { overlay.style.display = 'none'; frame.src = ""; }, 500);
+}
+
+document.getElementById('close-btn').addEventListener('click', closeOverlay);
+window.addEventListener('message', (e) => { if (e.data === 'closeAbout') closeOverlay(); });
+
+function animate() {
+  const time = Date.now() * 0.001;
+  bubbles.forEach(b => {
+    let floatX = Math.sin(time + b.seed) * 12;
+    let floatY = Math.cos(time + b.seed * 1.5) * 12;
+    b.el.style.transform = `translate(${floatX}px, ${floatY}px)`;
+  });
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>

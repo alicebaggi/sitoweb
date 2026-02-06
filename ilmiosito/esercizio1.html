@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Esercizio 1 – Alice Baggi</title>
+<style>
+body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; cursor: pointer; }
+canvas { max-width: 98vw; max-height: 98vh; object-fit: contain; }
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
+<script>
+let faccione;
+let dots = [];
+let d = 15; 
+let loadError = false;
+
+function preload() {
+  faccione = loadImage('faccione.png', 
+    () => { console.log("Immagine caricata!"); },
+    () => { 
+      faccione = loadImage('https://i.imgur.com/8N69FvS.png'); 
+      loadError = true;
+    }
+  );
+}
+
+function setup() {
+  faccione.resize(100, 0);
+  let canvasW = faccione.width * d;
+  let canvasH = faccione.height * d;
+  createCanvas(canvasW, canvasH);
+  
+  faccione.loadPixels();
+
+  for (let y = 0; y < faccione.height; y++) {
+    for (let x = 0; x < faccione.width; x++) {
+      let c = faccione.get(x, y);
+      let b = brightness(c);
+      if (b > 0) {
+        let px = x * d + d/2;
+        let py = y * d + d/2;
+        dots.push({
+          x: px, y: py, ox: px, oy: py,
+          baseAlpha: map(b, 0, 255, 120, 255),
+          size: map(b, 0, 255, 4, d * 1.8),
+          nsX: random(1000), nsY: random(2000), vs: random(0.005, 0.01)
+        });
+      }
+    }
+  }
+}
+
+function draw() {
+  background(0);
+
+  for (let dot of dots) {
+    let time = frameCount * dot.vs;
+    let tx = dot.ox + map(noise(dot.nsX, time), 0, 1, -20, 20);
+    let ty = dot.oy + map(noise(dot.nsY, time), 0, 1, -20, 20);
+    
+    let distM = dist(mouseX, mouseY, dot.x, dot.y);
+    if (distM < 120) {
+      let ang = atan2(mouseY - dot.y, mouseX - dot.x);
+      dot.x -= cos(ang) * map(distM, 0, 120, 8, 0);
+      dot.y -= sin(ang) * map(distM, 0, 120, 8, 0);
+    }
+
+    dot.x += (tx - dot.x) * 0.1;
+    dot.y += (ty - dot.y) * 0.1;
+
+    fill(0, 191, 255, dot.baseAlpha);
+    noStroke();
+    circle(dot.x, dot.y, dot.size);
+  }
+}
+
+function mouseClicked() {
+  window.parent.postMessage('closeAbout', '*');
+}
+</script>
+</body>
+</html>

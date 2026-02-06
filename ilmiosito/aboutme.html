@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About – Alice Baggi</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;700&display=swap" rel="stylesheet">
+<style>
+  body { 
+    margin: 0; 
+    background: #000; 
+    overflow: hidden; 
+    font-family: 'Inter', sans-serif; /* Aggiornato */
+    cursor: pointer; 
+  }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
+<script>
+let mainDrops = [];
+let ambientDrops = [];
+let splashes = [];
+let revealedTexts = [];
+let content = [
+  { main: "ALICE BAGGI", sub: "VISUAL DESIGNER" },
+  { main: "SUPSI DACD", sub: "MENDRISIO, CH" },
+  { main: "CONTATTI", sub: "ALICE.BAGGI@STUDENT.SUPSI.CH" },
+  { main: "SOCIAL", sub: "@ALICE.BAGGI", url: "https://instagram.com/alice.baggi" }
+];
+
+// Palette blu elettrico coordinata con la Homepage
+let palette = [[0, 191, 255], [0, 160, 255], [0, 120, 255], [0, 200, 255]];
+let currentIndex = 0;
+let lastGroupTime = 0;
+let positionsX = []; 
+let positionsY = []; 
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  calculateLayout();
+  lastGroupTime = millis() - 1200; 
+}
+
+function calculateLayout() {
+  // Dimensioni ridotte ed eleganti come richiesto nell'Esercizio 3
+  let mainSize = max(width * 0.012, 14); 
+  let subSize = max(width * 0.007, 9);
+  let blockWidths = [];
+  let totalBlocksWidth = 0;
+  
+  textFont('Inter'); // Assicura che il calcolo avvenga sul font corretto
+
+  for(let i=0; i<content.length; i++) {
+    textSize(mainSize);
+    let w1 = textWidth(content[i].main);
+    textSize(subSize);
+    let w2 = textWidth(content[i].sub);
+    blockWidths[i] = max(w1, w2);
+    totalBlocksWidth += blockWidths[i];
+  }
+
+  let startX = width * 0.06; 
+  let isMobile = width < 1000;
+
+  if (isMobile) {
+    for (let i = 0; i < content.length; i++) {
+      positionsX[i] = startX;
+      positionsY[i] = (height * 0.22) + (i * 110);
+    }
+  } else {
+    let currentX = startX;
+    let actualGap = (width * 0.88 - totalBlocksWidth) / (content.length - 1);
+    for (let i = 0; i < content.length; i++) {
+      positionsX[i] = currentX;
+      positionsY[i] = height * 0.82;
+      currentX += blockWidths[i] + actualGap;
+    }
+  }
+}
+
+function draw() {
+  background(0, 90); 
+
+  if (random(1) < 0.15) {
+    ambientDrops.push(new WaterDrop(-1, random(width), height + 100, [50, 80, 120]));
+  }
+  
+  for (let i = ambientDrops.length - 1; i >= 0; i--) {
+    ambientDrops[i].update();
+    ambientDrops[i].display(0.5);
+    if (ambientDrops[i].pos.y > height + 50) ambientDrops.splice(i, 1);
+  }
+
+  if (millis() - lastGroupTime > 1200 && currentIndex < content.length) {
+    for(let i=0; i<5; i++) {
+        mainDrops.push(new WaterDrop(currentIndex, positionsX[currentIndex], positionsY[currentIndex], palette[currentIndex]));
+    }
+    lastGroupTime = millis();
+    currentIndex++;
+  }
+
+  for (let i = mainDrops.length - 1; i >= 0; i--) {
+    mainDrops[i].update();
+    mainDrops[i].display(1.0);
+    if (mainDrops[i].pos.y >= mainDrops[i].targetY) {
+      for(let j=0; j<6; j++) splashes.push(new SplashParticle(mainDrops[i].pos.x, mainDrops[i].targetY, mainDrops[i].col));
+      if (!revealedTexts[mainDrops[i].id]) {
+        revealedTexts[mainDrops[i].id] = new InfoText(mainDrops[i].id, content[mainDrops[i].id], palette[mainDrops[i].id]);
+      }
+      mainDrops.splice(i, 1);
+    }
+  }
+
+  for (let i = splashes.length - 1; i >= 0; i--) {
+    splashes[i].update();
+    splashes[i].display();
+    if (splashes[i].alpha <= 0) splashes.splice(i, 1);
+  }
+
+  for (let t of revealedTexts) {
+    if (t) { t.update(); t.display(positionsX[t.id], positionsY[t.id]); }
+  }
+
+  checkHover();
+}
+
+function checkHover() {
+  if (currentIndex >= content.length && positionsX.length > 3) {
+    let x = positionsX[3];
+    let y = positionsY[3];
+    if (mouseX > x && mouseX < x + 180 && mouseY > y && mouseY < y + 60) {
+      cursor(HAND);
+    } else {
+      cursor(ARROW);
+    }
+  }
+}
+
+class WaterDrop {
+  constructor(id, x, y, col) {
+    this.id = id;
+    this.targetY = y;
+    this.pos = createVector(x + random(-15, 15), random(-60, -20));
+    this.velY = random(10, 20); 
+    this.col = col;
+    this.w = random(1.5, 3);
+  }
+  update() {
+    this.pos.y += this.velY;
+  }
+  display(scl) {
+    push();
+    noStroke();
+    let alphaBase = (this.id === -1) ? 60 : 200;
+    for (let i = 0; i < 3; i++) {
+      fill(this.col[0], this.col[1], this.col[2], alphaBase - (i * 40));
+      ellipse(this.pos.x, this.pos.y - (i * 4), this.w * scl, (this.velY * 1.8) * scl);
+    }
+    pop();
+  }
+}
+
+class SplashParticle {
+  constructor(x, y, col) {
+    this.pos = createVector(x, y);
+    this.vel = createVector(random(-3, 3), random(-2, -5));
+    this.acc = createVector(0, 0.4);
+    this.alpha = 255;
+    this.col = col;
+  }
+  update() {
+    this.vel.add(this.acc);
+    this.pos.add(this.vel);
+    this.alpha -= 15;
+  }
+  display() {
+    noStroke();
+    fill(this.col[0], this.col[1], this.col[2], this.alpha);
+    circle(this.pos.x, this.pos.y, 2);
+  }
+}
+
+class InfoText {
+  constructor(id, data, col) {
+    this.id = id;
+    this.data = data;
+    this.col = col;
+    this.alpha = 0;
+    this.yOff = 20;
+  }
+  update() {
+    this.alpha = min(this.alpha + 8, 255); 
+    this.yOff = lerp(this.yOff, 0, 0.1); 
+  }
+  display(x, y) {
+    push();
+    translate(x, y + this.yOff);
+    textAlign(LEFT, TOP);
+    textFont('Inter');
+    
+    // Dimensioni regolate per essere sottili e minimali
+    let mS = max(width * 0.012, 14);
+    let sS = max(width * 0.007, 9);
+    
+    // Testo Principale (Bianco, Grassetto)
+    fill(255, this.alpha);
+    textSize(mS); 
+    textStyle(BOLD);
+    text(this.data.main, 0, 0);
+    
+    // Sottotitolo (Blu, Sottile, con Spaziatura)
+    fill(this.col[0], this.col[1], this.col[2], this.alpha);
+    textSize(sS); 
+    textStyle(NORMAL);
+    // Aggiungo uno spazio tra le lettere simulato per il tracking
+    let subText = this.data.sub.split('').join(' ');
+    text(subText, 0, mS + 8); 
+    pop();
+  }
+}
+
+function mousePressed() {
+  if (currentIndex >= content.length && positionsX.length > 3) {
+    let x = positionsX[3];
+    let y = positionsY[3];
+    if (mouseX > x && mouseX < x + 180 && mouseY > y && mouseY < y + 60) {
+      window.open(content[3].url, '_blank');
+    } else {
+      window.parent.postMessage('closeAbout', '*');
+    }
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  calculateLayout();
+}
+</script>
+</body>
+</html>
